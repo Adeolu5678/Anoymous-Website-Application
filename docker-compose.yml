@@ -1,0 +1,61 @@
+services:
+  db:
+    image: postgres:13-alpine
+    container_name: anonymous-messaging-db
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./backend/db_init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432" # Expose for host access if needed
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: anonymous-messaging-backend
+    ports:
+      - "5000:5000"
+    environment:
+      PORT: ${PORT}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_HOST: db # This matches the service name for inter-container communication
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME}
+      JWT_SECRET: ${JWT_SECRET}
+      # If you were using AWS S3, Cloudinary, etc., add those here:
+      # CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
+      # CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
+      # CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app # Mount backend code for nodemon/dev changes
+      - /app/node_modules # Exclude node_modules from host mount
+      - ./backend/uploads:/app/uploads # Persist uploaded images
+    command: npm run dev # Use nodemon for development auto-restarts
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: anonymous-messaging-frontend
+    ports:
+      - "3000:80"
+    environment:
+      REACT_APP_API_URL: http://backend:5000/api # Use backend service name for inter-container communication
+    depends_on:
+      - backend
+
+volumes:
+  db_data: 

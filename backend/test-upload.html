@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Anonymous Message with Image</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 800px; 
+            margin: 20px auto; 
+            padding: 20px;
+        }
+        .form-group { 
+            margin-bottom: 15px; 
+        }
+        button { 
+            background: #4CAF50; 
+            color: white; 
+            padding: 10px 20px; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+        }
+        #result {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .error {
+            color: red;
+            background: #fff0f0;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        .drop-zone {
+            width: 100%;
+            height: 200px;
+            border: 2px dashed #ccc;
+            border-radius: 4px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 15px;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        .drop-zone.dragover {
+            background: #e1f5fe;
+            border-color: #2196F3;
+        }
+        .drop-zone input[type="file"] {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+        #imagePreview {
+            max-width: 300px;
+            max-height: 300px;
+            margin-top: 10px;
+            display: none;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #f0f0f0;
+            border-radius: 10px;
+            margin-top: 10px;
+            display: none;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background-color: #4CAF50;
+            border-radius: 10px;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <h2>Test Anonymous Message with Image</h2>
+    <form id="uploadForm">
+        <div class="form-group">
+            <label>Share Link ID:</label><br>
+            <input type="text" id="shareLinkId" required>
+        </div>
+        <div class="form-group">
+            <label>Message:</label><br>
+            <textarea id="message" rows="4" cols="50"></textarea>
+        </div>
+        <div class="form-group">
+            <label>Image:</label>
+            <div class="drop-zone">
+                <div>Drag & drop an image here or click to select</div>
+                <input type="file" id="image" accept="image/*">
+            </div>
+            <img id="imagePreview" alt="Preview">
+            <div class="progress-bar">
+                <div class="progress-bar-fill"></div>
+            </div>
+        </div>
+        <button type="submit">Send Message</button>
+    </form>
+    <div id="result"></div>
+
+    <script>
+        // Handle drag and drop
+        const dropZone = document.querySelector('.drop-zone');
+        const fileInput = document.getElementById('image');
+        const imagePreview = document.getElementById('imagePreview');
+        const progressBar = document.querySelector('.progress-bar');
+        const progressBarFill = document.querySelector('.progress-bar-fill');
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+            document.body.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, unhighlight, false);
+        });
+
+        function highlight(e) {
+            dropZone.classList.add('dragover');
+        }
+
+        function unhighlight(e) {
+            dropZone.classList.remove('dragover');
+        }
+
+        dropZone.addEventListener('drop', handleDrop, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            fileInput.files = files;
+            handleFiles(files);
+        }
+
+        fileInput.addEventListener('change', function() {
+            handleFiles(this.files);
+        });
+
+        function handleFiles(files) {
+            if (files.length > 0) {
+                const file = files[0];
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        imagePreview.src = e.target.result;
+                        imagePreview.style.display = 'block';
+                    };
+                    reader.readAsDataURL(file);
+                }
+            }
+        }
+
+        // Form submission with progress bar
+        document.getElementById('uploadForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Sending message...';
+            progressBar.style.display = 'block';
+            progressBarFill.style.width = '0%';
+
+            try {
+                const formData = new FormData();
+                const shareLinkId = document.getElementById('shareLinkId').value;
+                const message = document.getElementById('message').value;
+                const image = fileInput.files[0];
+
+                formData.append('text_content', message);
+                if (image) {
+                    formData.append('image', image);
+                }
+
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', `http://localhost:5000/api/messages/${shareLinkId}`);
+
+                xhr.upload.onprogress = function(e) {
+                    if (e.lengthComputable) {
+                        const percentComplete = (e.loaded / e.total) * 100;
+                        progressBarFill.style.width = percentComplete + '%';
+                    }
+                };
+
+                xhr.onload = function() {
+                    if (xhr.status === 201) {
+                        const result = JSON.parse(xhr.responseText);
+                        resultDiv.innerHTML = `
+                            <h3>Success!</h3>
+                            <pre>${JSON.stringify(result, null, 2)}</pre>
+                            ${result.imageUrl ? `<img src="${result.imageUrl}" style="max-width: 300px;">` : ''}
+                        `;
+                    } else {
+                        const error = JSON.parse(xhr.responseText);
+                        resultDiv.innerHTML = `
+                            <div class="error">
+                                <h3>Error:</h3>
+                                <p>${error.message}</p>
+                            </div>
+                        `;
+                    }
+                    progressBar.style.display = 'none';
+                };
+
+                xhr.onerror = function() {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <h3>Error:</h3>
+                            <p>Failed to send message. Please try again.</p>
+                        </div>
+                    `;
+                    progressBar.style.display = 'none';
+                };
+
+                xhr.send(formData);
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h3>Error:</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+                progressBar.style.display = 'none';
+            }
+        };
+    </script>
+</body>
+</html> 

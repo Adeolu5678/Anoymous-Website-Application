@@ -1,0 +1,9 @@
+{
+  "watch": ["*.js", "routes/", "controllers/", "models/", "middleware/", "config/"],
+  "ignore": ["node_modules/", "uploads/", "*.test.js", "test-upload.html"],
+  "ext": "js,json",
+  "delay": "2000",
+  "events": {
+    "restart": "echo \"App restarted due to changes\""
+  }
+} 

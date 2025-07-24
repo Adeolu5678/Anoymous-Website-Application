@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Test Page</title>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 20px auto; padding: 0 20px; }
+        .test-section { margin-bottom: 20px; padding: 20px; border: 1px solid #ccc; }
+        .result { margin-top: 10px; padding: 10px; background: #f0f0f0; }
+        button { margin: 5px; padding: 5px 10px; }
+    </style>
+</head>
+<body>
+    <h1>API Test Page</h1>
+    
+    <div class="test-section">
+        <h2>Register Test</h2>
+        <input type="text" id="regUsername" placeholder="Username">
+        <input type="password" id="regPassword" placeholder="Password">
+        <button onclick="register()">Register</button>
+        <div id="registerResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Login Test</h2>
+        <input type="text" id="loginUsername" placeholder="Username">
+        <input type="password" id="loginPassword" placeholder="Password">
+        <button onclick="login()">Login</button>
+        <div id="loginResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Auth Test</h2>
+        <button onclick="checkAuth()">Check Auth Status</button>
+        <button onclick="logout()">Logout</button>
+        <div id="authResult" class="result"></div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5000/api';
+        
+        async function register() {
+            const username = document.getElementById('regUsername').value;
+            const password = document.getElementById('regPassword').value;
+            const resultDiv = document.getElementById('registerResult');
+            
+            try {
+                const response = await axios.post(`${API_URL}/auth/register`, {
+                    username,
+                    password
+                });
+                resultDiv.innerHTML = `Success: ${JSON.stringify(response.data)}`;
+            } catch (error) {
+                resultDiv.innerHTML = `Error: ${error.response?.data?.message || error.message}`;
+            }
+        }
+
+        async function login() {
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+            const resultDiv = document.getElementById('loginResult');
+            
+            try {
+                const response = await axios.post(`${API_URL}/auth/login`, {
+                    username,
+                    password
+                });
+                localStorage.setItem('token', response.data.token);
+                localStorage.setItem('user', JSON.stringify(response.data.user));
+                resultDiv.innerHTML = `Success: ${JSON.stringify(response.data)}`;
+            } catch (error) {
+                resultDiv.innerHTML = `Error: ${error.response?.data?.message || error.message}`;
+            }
+        }
+
+        async function checkAuth() {
+            const resultDiv = document.getElementById('authResult');
+            const token = localStorage.getItem('token');
+            const user = localStorage.getItem('user');
+            
+            resultDiv.innerHTML = `
+                Token: ${token ? 'Present' : 'Not found'}<br>
+                User: ${user || 'Not found'}
+            `;
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            document.getElementById('authResult').innerHTML = 'Logged out';
+        }
+    </script>
+</body>
+</html> 
